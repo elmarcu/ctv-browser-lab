@@ -1,0 +1,17 @@
+services:
+  base:
+    image: ctv-browser-lab-base
+    build:
+      context: .
+      dockerfile: images/base/Dockerfile
+
+  device:
+    image: ctv-${DEVICE_NAME}
+    depends_on:
+      - base
+    build:
+      context: .
+      dockerfile: images/ctv-profile/Dockerfile
+      args:
+        DEVICE_NAME: ${DEVICE_NAME}
+        CHROMIUM_VERSION: ${CHROMIUM_VERSION}

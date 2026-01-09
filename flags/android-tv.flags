@@ -1,0 +1,4 @@
+--disable-features=TranslateUI,BackForwardCache
+--disable-site-isolation-trials
+--disable-features=PaintHolding
+--enable-low-end-device-mode

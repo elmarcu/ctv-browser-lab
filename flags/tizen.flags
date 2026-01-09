@@ -1,0 +1,4 @@
+--disable-features=BackForwardCache,OverlayScrollbar
+--disable-smooth-scrolling
+--disable-threaded-animation
+--disable-threaded-scrolling

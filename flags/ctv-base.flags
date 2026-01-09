@@ -1,0 +1,14 @@
+--no-sandbox
+--disable-dev-shm-usage
+--disable-infobars
+--disable-notifications
+--disable-extensions
+--disable-popup-blocking
+--disable-translate
+--disable-sync
+--disable-background-networking
+--disable-background-timer-throttling
+--disable-renderer-backgrounding
+--disable-backgrounding-occluded-windows
+--autoplay-policy=user-gesture-required
+--window-size=1280,720

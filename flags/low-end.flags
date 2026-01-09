@@ -1,0 +1,5 @@
+--disable-gpu
+--disable-features=BackForwardCache,PaintHolding
+--disable-smooth-scrolling
+--enable-low-end-device-mode
+--js-flags=--jitless

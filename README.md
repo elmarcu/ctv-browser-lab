@@ -73,15 +73,9 @@ These profiles represent **device classes**, not "latest" browsers.
 | LG WebOS      | 84               | Mid-generation LG WebOS TVs               |
 | Worst Case    | 72               | Low-end hardware still in production      |
 
-Browser versions are intentionally behind modern desktop Chrome. This reflects the reality of Connected TV platforms.
+Browser versions are intentionally behind modern desktop Chrome. Each profile exposes its Chromium version as a **Docker build argument** so teams can pin or upgrade versions deliberately.
 
-Each profile exposes its Chromium version as a **Docker build argument** so teams can pin or upgrade versions deliberately.
-
----
-
-## What each profile simulates
-
-All profiles intentionally enforce common CTV constraints:
+All profiles enforce common CTV constraints:
 
 * Arrow-key navigation only (↑ ↓ ← → Enter Back)
 * No mouse or touch input
@@ -95,17 +89,104 @@ The goal is not perfection — it is **early failure**.
 
 ---
 
+## v1 MVP Structure
+
+```
+images/
+├── base/
+│   └── Dockerfile            # Generic base image (no Chromium installed)
+│   └── install-chromium.sh   # Script for installing Chromium per profile
+├── ctv-profile/
+│   ├── Dockerfile            # Generic profile Dockerfile (installs Chromium + flags)
+│   └── entrypoint.sh         # Shared entrypoint reading flags
+
+flags/
+├── ctv-base.flags             # Flags applied to all CTVs
+├── android-tv.flags           # Profile-specific flags
+├── tizen.flags
+├── webos.flags
+└── low-end.flags
+
+docker-compose.yml
+```
+
+### Base Dockerfile (`images/base/Dockerfile`)
+
+```dockerfile
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    xvfb \
+    dbus \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libxss1 \
+    libasound2 \
+    libgbm1 \
+    libxdamage1 \
+    libxrandr2 \
+    libdrm2 \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY install-chromium.sh /usr/local/bin/install-chromium.sh
+RUN chmod +x /usr/local/bin/install-chromium.sh
+
+ENV DISPLAY=:99
+CMD ["bash"]
+```
+
+### Profile Dockerfile (`images/ctv-profile/Dockerfile`)
+
+```dockerfile
+FROM ctv-browser-lab-base
+
+ARG DEVICE_NAME
+ARG CHROMIUM_VERSION
+
+# install Chromium per profile
+RUN install-chromium.sh $CHROMIUM_VERSION
+
+COPY ../../flags/ctv-base.flags /flags/ctv-base.flags
+COPY ../../flags/${DEVICE_NAME}.flags /flags/profile.flags
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+```
+
+### Entrypoint (`images/ctv-profile/entrypoint.sh`)
+
+```bash
+#!/usr/bin/env bash
+set -e
+
+chromium \
+  $(cat /flags/ctv-base.flags) \
+  $(cat /flags/profile.flags) \
+  "$@"
+```
+
+---
+
 ## Quick start (local)
 
 Run your app inside a CTV browser profile:
 
 ```bash
-docker run \
-  -p 8080:8080 \
-  ctv-browser-lab:android-tv
-```
+export DEVICE_NAME=android-tv
+export CHROMIUM_VERSION=90
 
-Point the container at your app and interact using arrow keys.
+docker-compose build device
+docker-compose run --rm device
+```
 
 ---
 
@@ -124,8 +205,8 @@ Example (GitHub Actions):
 ```yaml
 - name: Run tests in Android TV profile
   run: |
-    docker build -t ctv-android-tv ./profiles/android-tv
-    docker run ctv-android-tv npm test
+    docker-compose build device
+    docker-compose run --rm device npm test
 ```
 
 Tests belong to **your application**, not this repository.
@@ -134,9 +215,7 @@ Tests belong to **your application**, not this repository.
 
 ## Profile sanity checks
 
-This repo includes lightweight **profile sanity checks** to ensure environments behave as advertised.
-
-Examples:
+Lightweight **sanity checks** ensure environments behave as advertised:
 
 * Focus moves only via arrow keys
 * Autoplay fails without user interaction
@@ -155,6 +234,14 @@ These checks validate the simulator itself — not your app.
 * Media performance may differ from physical devices
 
 If you need exact behavior, test on real hardware.
+
+---
+
+## Adding New Devices
+
+1. Create a new flags file in `flags/` (e.g., `fire-tv.flags`).
+2. Use the same `ctv-profile/Dockerfile` and `entrypoint.sh` — no new Dockerfile needed.
+3. Pass `DEVICE_NAME=fire-tv` and desired `CHROMIUM_VERSION` when building.
 
 ---
 

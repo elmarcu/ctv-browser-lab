@@ -1,0 +1,3 @@
+--disable-features=BackForwardCache
+--disable-smooth-scrolling
+--enable-features=NetworkServiceInProcess
